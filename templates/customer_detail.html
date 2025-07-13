@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.company_name }} - Kundenverwaltung{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-building me-2"></i>{{ customer.company_name }}
+        {% if customer.category == 'neu' %}
+            <span class="badge bg-warning ms-2">Neu</span>
+        {% elif customer.category == 'Interesse' %}
+            <span class="badge bg-info ms-2">Interesse</span>
+        {% elif customer.category == 'Bedarf' %}
+            <span class="badge bg-success ms-2">Bedarf</span>
+        {% else %}
+            <span class="badge bg-secondary ms-2">Kein Bedarf</span>
+        {% endif %}
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Zurück
+        </a>
+        <a href="{{ url_for('edit_customer', id=customer.id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-edit me-2"></i>Bearbeiten
+        </a>
+        <a href="{{ url_for('customer_documents', customer_id=customer.id) }}" class="btn btn-outline-success">
+            <i class="fas fa-file-alt me-2"></i>Dokumente
+        </a>
+        <a href="{{ url_for('print_customer', id=customer.id) }}" class="btn btn-outline-info" target="_blank">
+            <i class="fas fa-print me-2"></i>Drucken
+        </a>
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+            <i class="fas fa-trash me-2"></i>Löschen
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Customer Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Unternehmensinformationen</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Branche:</strong> {{ customer.industry or '-' }}<br>
+                        <strong>Website:</strong> 
+                        {% if customer.website %}
+                            <a href="javascript:void(0)" onclick="openWebsite('{{ customer.website }}')">{{ customer.website }}</a>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Adresse:</strong><br>
+                        {% if customer.address %}
+                            {{ customer.address }}<br>
+                        {% endif %}
+                        {% if customer.postal_code or customer.city %}
+                            {{ customer.postal_code }} {{ customer.city }}<br>
+                        {% endif %}
+                        {% if customer.country %}
+                            {{ customer.country }}
+                        {% endif %}
+                        {% if not customer.address and not customer.postal_code and not customer.city and not customer.country %}
+                            -
+                        {% endif %}
+                    </div>
+                </div>
+                {% if customer.notes %}
+                    <hr>
+                    <strong>Notizen:</strong><br>
+                    <p class="text-muted">{{ customer.notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Contacts -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Ansprechpartner ({{ customer.contacts|length }})</h5>
+                <a href="{{ url_for('new_contact', customer_id=customer.id) }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>Neuer Kontakt
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if customer.contacts %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Titel</th>
+                                    <th>Kontakt</th>
+                                    <th>Abteilung</th>
+                                    <th>Termine</th>
+                                    <th>Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contact in customer.contacts %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ contact.full_name }}</strong>
+                                            {% if contact.is_primary %}
+                                                <span class="badge bg-primary ms-1">Haupt</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ contact.title or '-' }}</td>
+                                        <td>
+                                            {% if contact.email %}
+                                                <a href="mailto:{{ contact.email }}">{{ contact.email }}</a><br>
+                                            {% endif %}
+                                            {% if contact.phone %}
+                                                <a href="tel:{{ contact.phone }}">{{ contact.phone }}</a><br>
+                                            {% endif %}
+                                            {% if contact.mobile %}
+                                                <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ contact.department or '-' }}</td>
+                                        <td>
+                                            <small class="text-muted">{{ contact.appointments|length }} Termine</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('edit_contact', id=contact.id) }}" class="btn btn-outline-secondary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{{ url_for('new_appointment', contact_id=contact.id) }}" class="btn btn-outline-primary">
+                                                    <i class="fas fa-calendar-plus"></i>
+                                                </a>
+                                                <form method="POST" action="{{ url_for('delete_contact', id=contact.id) }}" style="display: inline;">
+                                                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Sind Sie sicher, dass Sie diesen Kontakt löschen möchten?')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-user-plus fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Keine Ansprechpartner vorhanden.</p>
+                        <a href="{{ url_for('new_contact', customer_id=customer.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Ersten Kontakt hinzufügen
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Quick Stats -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Statistiken</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="p-3">
+                            <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                            <h6>Kontakte</h6>
+                            <span class="fs-4">{{ customer.contacts|length }}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3">
+                            <i class="fas fa-calendar fa-2x text-success mb-2"></i>
+                            <h6>Termine</h6>
+                            <span class="fs-4">
+                                {% set total_appointments = 0 %}
+                                {% for contact in customer.contacts %}
+                                    {% set total_appointments = total_appointments + contact.appointments|length %}
+                                {% endfor %}
+                                {{ total_appointments }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Appointments -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Kommende Termine</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_appointments %}
+                    <div class="list-group list-group-flush">
+                        {% for appointment in upcoming_appointments %}
+                            <div class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ appointment.title }}</h6>
+                                        <p class="mb-1 text-muted small">{{ appointment.contact.full_name }}</p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>{{ appointment.appointment_date.strftime('%d.%m.%Y %H:%M') }}
+                                        </small>
+                                    </div>
+                                    <a href="{{ url_for('edit_appointment', id=appointment.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-calendar-times fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Keine anstehenden Termine.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Kunde löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sind Sie sicher, dass Sie den Kunden <strong>{{ customer.company_name }}</strong> löschen möchten?</p>
+                <p class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>Diese Aktion kann nicht rückgängig gemacht werden. Alle Ansprechpartner und Termine werden ebenfalls gelöscht.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form method="POST" action="{{ url_for('delete_customer', id=customer.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Löschen</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
