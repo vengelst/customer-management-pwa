@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+
+{% block title %}Dokument hochladen - {{ customer.company_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-upload me-2"></i>
+                    Dokument hochladen - {{ customer.company_name }}
+                </h1>
+                <a href="{{ url_for('customer_documents', customer_id=customer.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Zurück zu Dokumenten
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- Upload Methods Tabs -->
+                    <ul class="nav nav-tabs" id="uploadTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab">
+                                <i class="fas fa-upload"></i> Datei auswählen
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="dragdrop-tab" data-bs-toggle="tab" data-bs-target="#dragdrop" type="button" role="tab">
+                                <i class="fas fa-hand-pointer"></i> Drag & Drop
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="mobilescan-tab" data-bs-toggle="tab" data-bs-target="#mobilescan" type="button" role="tab">
+                                <i class="fas fa-camera"></i> Mobile Scan
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content mt-3" id="uploadTabsContent">
+                        <!-- Normal Upload -->
+                        <div class="tab-pane fade show active" id="upload" role="tabpanel">
+                            <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                                <input type="hidden" name="upload_method" value="upload">
+                                
+                                <div class="mb-3">
+                                    <label for="file" class="form-label">Datei auswählen</label>
+                                    <input type="file" class="form-control" id="file" name="file" required
+                                           accept=".txt,.pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+                                    <div class="form-text">
+                                        Erlaubte Dateitypen: TXT, PDF, PNG, JPG, JPEG, GIF, DOC, DOCX, XLS, XLSX, PPT, PPTX (max. 16MB)
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Beschreibung</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3" 
+                                              placeholder="Optionale Beschreibung des Dokuments"></textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="tags" class="form-label">Tags</label>
+                                    <input type="text" class="form-control" id="tags" name="tags" 
+                                           placeholder="Komma-getrennte Tags (z.B. Vertrag, Rechnung, Angebot)">
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i> Dokument hochladen
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Drag & Drop -->
+                        <div class="tab-pane fade" id="dragdrop" role="tabpanel">
+                            <div class="upload-drop-zone" id="dropZone">
+                                <div class="upload-drop-content">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h4>Dateien hier ablegen</h4>
+                                    <p class="text-muted">Oder klicken Sie hier, um Dateien auszuwählen</p>
+                                    <input type="file" id="dropInput" multiple style="display: none;"
+                                           accept=".txt,.pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+                                </div>
+                            </div>
+                            
+                            <div id="dropUploadList" class="mt-3"></div>
+                        </div>
+
+                        <!-- Mobile Scan -->
+                        <div class="tab-pane fade" id="mobilescan" role="tabpanel">
+                            <div class="mobile-scan-container">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    Diese Funktion nutzt die Kamera Ihres Mobilgeräts zum Scannen von Dokumenten.
+                                </div>
+                                
+                                <div class="scan-area" id="scanArea">
+                                    <div id="videoContainer" style="position: relative; display: inline-block;">
+                                        <video id="video" autoplay playsinline style="width: 100%; max-width: 400px; display: none; border-radius: 8px;"></video>
+                                        <div id="cameraOverlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); border-radius: 8px; cursor: pointer; user-select: none;">
+                                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center;">
+                                                <i class="fas fa-camera fa-2x mb-2"></i>
+                                                <div style="font-size: 18px; font-weight: bold;">Tippen Sie hier</div>
+                                                <div style="font-size: 14px;">um ein Foto aufzunehmen</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <canvas id="canvas" style="display: none;"></canvas>
+                                    <div id="scanPreview" class="scan-preview"></div>
+                                </div>
+                                
+                                <div class="scan-controls mt-3">
+                                    <button type="button" id="startScan" class="btn btn-primary">
+                                        <i class="fas fa-camera"></i> Kamera starten
+                                    </button>
+                                    <button type="button" id="retakePicture" class="btn btn-warning" style="display: none;">
+                                        <i class="fas fa-redo"></i> Erneut aufnehmen
+                                    </button>
+                                    <button type="button" id="uploadScan" class="btn btn-primary" style="display: none;">
+                                        <i class="fas fa-upload"></i> Scan hochladen
+                                    </button>
+                                </div>
+                                
+                                <form id="scanForm" method="POST" enctype="multipart/form-data" style="display: none;">
+                                    <input type="hidden" name="upload_method" value="mobile_scan">
+                                    <input type="hidden" name="scan_data" id="scanData">
+                                    
+                                    <div class="mt-3">
+                                        <label for="scanDescription" class="form-label">Beschreibung</label>
+                                        <textarea class="form-control" id="scanDescription" name="description" rows="3" 
+                                                  placeholder="Optionale Beschreibung des Dokuments"></textarea>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <label for="scanTags" class="form-label">Tags</label>
+                                        <input type="text" class="form-control" id="scanTags" name="tags" 
+                                               placeholder="Komma-getrennte Tags (z.B. Vertrag, Rechnung, Angebot)">
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-info-circle"></i> Hinweise</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>Unterstützte Dateiformate:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-file-alt"></i> Textdateien: TXT</li>
+                                <li><i class="fas fa-file-pdf"></i> PDF-Dokumente</li>
+                                <li><i class="fas fa-file-image"></i> Bilder: PNG, JPG, JPEG, GIF</li>
+                                <li><i class="fas fa-file-word"></i> Word: DOC, DOCX</li>
+                                <li><i class="fas fa-file-excel"></i> Excel: XLS, XLSX</li>
+                                <li><i class="fas fa-file-powerpoint"></i> PowerPoint: PPT, PPTX</li>
+                            </ul>
+                            
+                            <hr>
+                            
+                            <h6>Upload-Methoden:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-upload text-primary"></i> <strong>Datei auswählen:</strong> Klassischer Datei-Upload</li>
+                                <li><i class="fas fa-hand-pointer text-success"></i> <strong>Drag & Drop:</strong> Dateien in den Browser ziehen</li>
+                                <li><i class="fas fa-camera text-warning"></i> <strong>Mobile Scan:</strong> Dokumente mit der Kamera scannen</li>
+                            </ul>
+                            
+                            <hr>
+                            
+                            <h6>Maximale Dateigröße:</h6>
+                            <p class="text-muted">16 MB pro Datei</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-drop-zone:hover,
+.upload-drop-zone.dragover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+}
+
+.scan-area {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#videoContainer {
+    position: relative;
+    display: inline-block;
+}
+
+#cameraOverlay {
+    transition: opacity 0.3s ease;
+}
+
+#cameraOverlay:hover {
+    opacity: 0.8;
+}
+
+.scan-preview img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+}
+
+.upload-file-item {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+}
+
+.upload-progress {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.upload-progress-bar {
+    height: 100%;
+    background: #007bff;
+    transition: width 0.3s ease;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Drag & Drop functionality
+    const dropZone = document.getElementById('dropZone');
+    const dropInput = document.getElementById('dropInput');
+    const dropUploadList = document.getElementById('dropUploadList');
+    
+    dropZone.addEventListener('click', () => dropInput.click());
+    dropZone.addEventListener('dragover', handleDragOver);
+    dropZone.addEventListener('dragleave', handleDragLeave);
+    dropZone.addEventListener('drop', handleDrop);
+    dropInput.addEventListener('change', handleFileSelect);
+    
+    function handleDragOver(e) {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    }
+    
+    function handleDragLeave(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+    }
+    
+    function handleDrop(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+    }
+    
+    function handleFileSelect(e) {
+        const files = e.target.files;
+        handleFiles(files);
+    }
+    
+    function handleFiles(files) {
+        dropUploadList.innerHTML = '';
+        Array.from(files).forEach(file => {
+            if (isAllowedFile(file)) {
+                uploadFile(file, 'drag_drop');
+            } else {
+                showError(`Dateityp ${file.name} nicht erlaubt`);
+            }
+        });
+    }
+    
+    function isAllowedFile(file) {
+        const allowed = ['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+        const ext = file.name.split('.').pop().toLowerCase();
+        return allowed.includes(ext);
+    }
+    
+    function uploadFile(file, method) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_method', method);
+        
+        const fileItem = document.createElement('div');
+        fileItem.className = 'upload-file-item';
+        fileItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-file"></i> ${file.name}
+                    <small class="text-muted">(${(file.size / 1024).toFixed(2)} KB)</small>
+                </div>
+                <div class="upload-status">
+                    <i class="fas fa-spinner fa-spin"></i> Wird hochgeladen...
+                </div>
+            </div>
+            <div class="upload-progress mt-2">
+                <div class="upload-progress-bar" style="width: 0%"></div>
+            </div>
+        `;
+        
+        dropUploadList.appendChild(fileItem);
+        
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                fileItem.querySelector('.upload-progress-bar').style.width = percentComplete + '%';
+            }
+        };
+        
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                fileItem.querySelector('.upload-status').innerHTML = '<i class="fas fa-check text-success"></i> Erfolgreich hochgeladen';
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('customer_documents', customer_id=customer.id) }}";
+                }, 1000);
+            } else {
+                fileItem.querySelector('.upload-status').innerHTML = '<i class="fas fa-times text-danger"></i> Fehler beim Upload';
+            }
+        };
+        
+        xhr.open('POST', "{{ url_for('upload_document', customer_id=customer.id) }}");
+        xhr.send(formData);
+    }
+    
+    // Mobile Scan functionality
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const scanPreview = document.getElementById('scanPreview');
+    const startScan = document.getElementById('startScan');
+    const retakePicture = document.getElementById('retakePicture');
+    const uploadScan = document.getElementById('uploadScan');
+    const scanForm = document.getElementById('scanForm');
+    const scanData = document.getElementById('scanData');
+    const videoContainer = document.getElementById('videoContainer');
+    const cameraOverlay = document.getElementById('cameraOverlay');
+    
+    let stream = null;
+    
+    startScan.addEventListener('click', async function() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment', // Rear camera on mobile
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                } 
+            });
+            
+            video.srcObject = stream;
+            video.style.display = 'block';
+            cameraOverlay.style.display = 'block';
+            
+            startScan.style.display = 'none';
+            
+        } catch (err) {
+            console.error('Kamera-Zugriff fehlgeschlagen:', err);
+            alert('Kamera-Zugriff fehlgeschlagen. Bitte überprüfen Sie die Berechtigung.');
+        }
+    });
+    
+    // Tap on video or overlay to take picture
+    function takePicture() {
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        context.drawImage(video, 0, 0);
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        scanPreview.innerHTML = `<img src="${imageData}" alt="Scan Preview">`;
+        
+        video.style.display = 'none';
+        cameraOverlay.style.display = 'none';
+        retakePicture.style.display = 'inline-block';
+        uploadScan.style.display = 'inline-block';
+        scanForm.style.display = 'block';
+        
+        scanData.value = imageData;
+        
+        // Stop camera stream
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    }
+    
+    // Add click/tap event listeners
+    video.addEventListener('click', takePicture);
+    cameraOverlay.addEventListener('click', takePicture);
+    
+    // Add touch event for mobile
+    video.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        takePicture();
+    });
+    
+    cameraOverlay.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        takePicture();
+    });
+    
+    retakePicture.addEventListener('click', function() {
+        scanPreview.innerHTML = '';
+        scanForm.style.display = 'none';
+        
+        retakePicture.style.display = 'none';
+        uploadScan.style.display = 'none';
+        startScan.style.display = 'inline-block';
+        
+        // Reset video and overlay
+        video.style.display = 'none';
+        cameraOverlay.style.display = 'none';
+    });
+    
+    uploadScan.addEventListener('click', function() {
+        console.log('Upload-Scan gestartet');
+        
+        if (!scanData.value) {
+            alert('Kein Scan-Daten vorhanden. Bitte scannen Sie zuerst ein Dokument.');
+            return;
+        }
+        
+        const formData = new FormData();
+        
+        try {
+            // Convert base64 to blob
+            const base64Data = scanData.value.split(',')[1];
+            console.log('Base64 Data Length:', base64Data.length);
+            
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'image/jpeg' });
+            
+            const fileName = `scan_${Date.now()}.jpg`;
+            const file = new File([blob], fileName, { type: 'image/jpeg' });
+            
+            console.log('Datei erstellt:', fileName, 'Größe:', file.size);
+            
+            formData.append('file', file);
+            formData.append('upload_method', 'mobile_scan');
+            formData.append('description', document.getElementById('scanDescription').value || '');
+            formData.append('tags', document.getElementById('scanTags').value || '');
+            
+            console.log('FormData vorbereitet');
+            
+            uploadScan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Wird hochgeladen...';
+            uploadScan.disabled = true;
+        } catch (error) {
+            console.error('Fehler beim Vorbereiten der Datei:', error);
+            alert('Fehler beim Vorbereiten der Datei: ' + error.message);
+            return;
+        }
+        
+        const xhr = new XMLHttpRequest();
+        
+        xhr.onload = function() {
+            console.log('Upload-Antwort:', xhr.status, xhr.responseText);
+            
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    console.log('Erfolgreich geparst:', response);
+                    if (response.success) {
+                        console.log('Upload erfolgreich, leite weiter');
+                        window.location.href = "{{ url_for('customer_documents', customer_id=customer.id) }}";
+                    } else {
+                        console.error('Upload-Fehler:', response.error);
+                        alert('Fehler: ' + response.error);
+                        uploadScan.innerHTML = '<i class="fas fa-upload"></i> Scan hochladen';
+                        uploadScan.disabled = false;
+                    }
+                } catch (e) {
+                    console.log('Kein JSON, fallback zur Weiterleitung');
+                    // Fallback for non-JSON responses
+                    window.location.href = "{{ url_for('customer_documents', customer_id=customer.id) }}";
+                }
+            } else {
+                console.error('HTTP-Fehler:', xhr.status);
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    alert('Fehler beim Upload: ' + response.error);
+                } catch (e) {
+                    alert('Fehler beim Upload (Status: ' + xhr.status + ')');
+                }
+                uploadScan.innerHTML = '<i class="fas fa-upload"></i> Scan hochladen';
+                uploadScan.disabled = false;
+            }
+        };
+        
+        xhr.onerror = function() {
+            console.error('Netzwerk-Fehler beim Upload');
+            alert('Netzwerk-Fehler beim Upload');
+            uploadScan.innerHTML = '<i class="fas fa-upload"></i> Scan hochladen';
+            uploadScan.disabled = false;
+        };
+        
+        xhr.open('POST', "{{ url_for('upload_document', customer_id=customer.id) }}");
+        xhr.send(formData);
+    });
+    
+    function showError(message) {
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-danger alert-dismissible fade show';
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('.container').insertBefore(alert, document.querySelector('.row'));
+    }
+});
+</script>
+{% endblock %}
