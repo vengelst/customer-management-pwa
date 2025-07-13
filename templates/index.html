@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}Kundenverwaltung - Übersicht{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>Kundenübersicht</h1>
+                <a href="{{ url_for('new_customer') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Neuer Kunde
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <form method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" name="search" value="{{ request.args.get('search', '') }}" placeholder="Suchen nach Firmenname, Branche oder Stadt...">
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" name="category">
+                        <option value="">Alle Kategorien</option>
+                        <option value="neu" {% if request.args.get('category') == 'neu' %}selected{% endif %}>Neu</option>
+                        <option value="Interesse" {% if request.args.get('category') == 'Interesse' %}selected{% endif %}>Interesse</option>
+                        <option value="Bedarf" {% if request.args.get('category') == 'Bedarf' %}selected{% endif %}>Bedarf</option>
+                        <option value="kein Bedarf" {% if request.args.get('category') == 'kein Bedarf' %}selected{% endif %}>Kein Bedarf</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('categories') }}" class="btn btn-outline-info">
+                    <i class="fas fa-chart-bar me-1"></i>Kategorien
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer List -->
+    <div class="row">
+        <div class="col-12">
+            {% if customers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Unternehmen</th>
+                                <th>Branche</th>
+                                <th>Stadt</th>
+                                <th>Kategorie</th>
+                                <th>Kontakte</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers %}
+                                <tr>
+                                    <td>
+                                        <span class="customer-name-wrapper" 
+                                              data-customer-id="{{ customer.id }}"
+                                              onmouseenter="showCustomerPopup(this, {{ customer.id }}, event)"
+                                              onmouseleave="hideCustomerPopup()"
+                                              style="cursor: pointer; padding: 4px 8px; margin: -4px -8px; border-radius: 4px; display: inline-block;">
+                                            <strong style="color: #0d6efd;">{{ customer.company_name }}</strong>
+                                        </span>
+                                        {% if customer.website %}
+                                            <br><small><a href="javascript:void(0)" onclick="openWebsite('{{ customer.website }}')" class="text-muted">{{ customer.website }}</a></small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ customer.industry or '-' }}</td>
+                                    <td>{{ customer.city or '-' }}</td>
+                                    <td>
+                                        {% if customer.category == 'neu' %}
+                                            <span class="badge bg-secondary">Neu</span>
+                                        {% elif customer.category == 'Interesse' %}
+                                            <span class="badge bg-info">Interesse</span>
+                                        {% elif customer.category == 'Bedarf' %}
+                                            <span class="badge bg-success">Bedarf</span>
+                                        {% elif customer.category == 'kein Bedarf' %}
+                                            <span class="badge bg-danger">Kein Bedarf</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ customer.contacts|length }}</span>
+                                        {% if customer.contacts %}
+                                            <small class="text-muted ms-2">
+                                                {% for contact in customer.contacts[:2] %}
+                                                    {{ contact.first_name }} {{ contact.last_name }}{% if not loop.last %}, {% endif %}
+                                                {% endfor %}
+                                                {% if customer.contacts|length > 2 %}
+                                                    ...
+                                                {% endif %}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('customer_detail', id=customer.id) }}" class="btn btn-sm btn-outline-primary" title="Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('edit_customer', id=customer.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{{ url_for('customer_documents', customer_id=customer.id) }}" class="btn btn-sm btn-outline-success" title="Dokumente">
+                                                <i class="fas fa-file-alt"></i>
+                                            </a>
+                                            <a href="{{ url_for('print_customer_edit', id=customer.id) }}" class="btn btn-sm btn-outline-info" title="Drucken" target="_blank">
+                                                <i class="fas fa-print"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteCustomer({{ customer.id }})" title="Löschen">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h4>Keine Kunden gefunden</h4>
+                    <p class="text-muted">Erstellen Sie Ihren ersten Kunden, um zu beginnen.</p>
+                    <a href="{{ url_for('new_customer') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Ersten Kunden erstellen
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Customer Popup -->
+<div id="customerPopup" class="customer-popup" style="display: none;">
+    <div class="popup-content">
+        <div class="popup-header">
+            <h6 class="mb-0" id="popupTitle"></h6>
+            <div class="popup-actions">
+                <button class="btn btn-sm btn-outline-secondary me-1" id="editCustomerBtn" onclick="editCustomer()" title="Bearbeiten">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-1" id="documentsCustomerBtn" onclick="documentsCustomer()" title="Dokumente">
+                    <i class="fas fa-file-alt"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-2" id="printCustomerBtn" onclick="printCustomer()" title="Drucken">
+                    <i class="fas fa-print"></i>
+                </button>
+                <span class="popup-close" onclick="hideCustomerPopup()">&times;</span>
+            </div>
+        </div>
+        <div id="popupContent" class="popup-body"></div>
+    </div>
+</div>
+
+<!-- Contact Popup -->
+<div id="contactPopup" class="contact-popup" style="display: none;">
+    <div class="popup-content">
+        <div class="popup-header">
+            <h6 class="mb-0" id="contactPopupTitle"></h6>
+            <div class="popup-actions">
+                <button class="btn btn-sm btn-outline-secondary me-1" id="editContactBtn" onclick="editContact()" title="Bearbeiten">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-2" id="printContactBtn" onclick="printContact()" title="Drucken">
+                    <i class="fas fa-print"></i>
+                </button>
+                <span class="popup-close" onclick="hideContactPopup()">&times;</span>
+            </div>
+        </div>
+        <div id="contactPopupContent" class="popup-body"></div>
+    </div>
+</div>
+
+<style>
+.customer-popup, .contact-popup {
+    position: absolute;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-width: 500px;
+    min-width: 400px;
+}
+
+.contact-popup {
+    z-index: 1001;
+}
+
+.popup-content {
+    padding: 0;
+}
+
+.popup-header {
+    background: var(--bs-secondary-bg);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px 8px 0 0;
+}
+
+.popup-actions {
+    display: flex;
+    align-items: center;
+}
+
+.popup-actions .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.popup-close {
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--bs-secondary-color);
+}
+
+.popup-close:hover {
+    color: var(--bs-body-color);
+}
+
+.popup-body {
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.info-item {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.popup-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.popup-section h6 {
+    margin-bottom: 12px;
+    color: var(--bs-emphasis-color);
+}
+
+.contact-item {
+    padding: 8px 12px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.contact-item:hover {
+    background-color: var(--bs-secondary-bg);
+}
+
+.contact-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.contact-details {
+    font-size: 13px;
+    color: var(--bs-secondary-color);
+}
+
+.appointment-item {
+    padding: 8px 12px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.appointment-item.future {
+    background-color: var(--bs-info-bg-subtle);
+    border-color: var(--bs-info-border-subtle);
+}
+
+.appointment-item.past {
+    background-color: var(--bs-secondary-bg);
+    border-color: var(--bs-secondary-border-subtle);
+}
+
+.appointment-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.appointment-date {
+    color: var(--bs-secondary-color);
+    margin-bottom: 4px;
+}
+
+.appointment-details {
+    color: var(--bs-secondary-color);
+}
+
+.appointment-description {
+    margin-top: 4px;
+    font-style: italic;
+}
+</style>
+
+<script>
+function deleteCustomer(customerId) {
+    if (confirm('Sind Sie sicher, dass Sie diesen Kunden löschen möchten?')) {
+        fetch(`/customer/${customerId}`, {
+            method: 'DELETE',
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Fehler beim Löschen des Kunden');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Fehler beim Löschen des Kunden');
+        });
+    }
+}
+</script>
+
+<script src="{{ url_for('static', filename='js/popup.js') }}"></script>
+{% endblock %}
